@@ -1,0 +1,9 @@
+## Interface: 30402
+## Title: ExperienceTracker
+## Notes: Tracks XP gained per hour and per minute.
+## SavedVariables: ExperienceTrackerData
+
+XpFrameContainer.lua
+ExperienceTracker.lua
+Buttons.lua
+SlashCommands.lua
