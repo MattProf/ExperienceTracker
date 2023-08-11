@@ -1,12 +1,16 @@
 -- ExperienceTracker.lua
-
 XpFrame.startTime = GetTime()
 XpFrame.startXP = UnitXP("player")
 
--- Variables for tracking mob XP
+-- Variables for tracking XP
 XpFrame.totalXP = 0
 XpFrame.mobCount = 0
+XpFrame.mobXP, XpFrame.questXP, XpFrame.locationXP = 0, 0, 0
 XpFrame.xpGains = {}
+
+XpFrame.frame:RegisterEvent("CHAT_MSG_SYSTEM")
+XpFrame.frame:RegisterEvent("PLAYER_LEVEL_UP")
+XpFrame.frame:RegisterEvent("CHAT_MSG_COMBAT_XP_GAIN")
 
 XpFrame.CalculateAverageMobXP = function()
     return XpFrame.mobCount == 0 and 0 or XpFrame.mobXP / XpFrame.mobCount
@@ -38,7 +42,6 @@ XpFrame.UpdateDisplayText = function()
     local mobsToLevel = modeMobXP == 0 and 0 or xpToLevel / modeMobXP
     local timeToLevel = xpPerMin == 0 and 0 or xpToLevel / xpPerMin -- in minutes
 
-
     XpFrame.frame.totalXpText:SetText(string.format("Total XP: %d", XpFrame.totalXP))
     XpFrame.frame.mobXpText:SetText(string.format("Total Mob XP: %d", XpFrame.mobXP))
     XpFrame.frame.questXpText:SetText(string.format("Total Quest XP: %d", XpFrame.questXP))
@@ -59,93 +62,55 @@ XpFrame.UpdateDisplayText = function()
     XpFrame.frame.TimeToLevelText:SetTextColor(1, 1, 1)
 end
 
-XpFrame.frame:RegisterEvent("PLAYER_XP_UPDATE")
-XpFrame.frame:RegisterEvent("QUEST_TURNED_IN")
-XpFrame.frame:RegisterEvent("ZONE_CHANGED")
-XpFrame.frame:RegisterEvent("PLAYER_LEVEL_UP")
-XpFrame.frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-XpFrame.frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-XpFrame.isInCombat = false
-XpFrame.lastXP = XpFrame.startXP
-
-local prevXP = UnitXP("player")
-XpFrame.mobXP, XpFrame.questXP, XpFrame.locationXP = 0, 0, 0
-local isZoneChange = false
-local lastQuestTurnInTime = 0
-local lastSubzone = GetSubZoneText()
-
 XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
-    
-    if event == "PLAYER_XP_UPDATE" then
-        local currXP = UnitXP("player")
-        local diffXP = currXP - prevXP
 
-        if currXP < prevXP then
-            -- Account for overflow XP that contributed to level-up.
-            local xpToLevelBeforeLevelUp = UnitXPMax("player") - prevXP
-            diffXP = xpToLevelBeforeLevelUp + currXP
-        end
-
-        local isMobXP = true
-
-        if not questXPAdded and GetTime() - lastQuestTurnInTime <= 2  and not XpFrame.isInCombat then
-            -- This is XP from a quest turn-in
-            XpFrame.questXP = XpFrame.questXP + diffXP
-            questXPAdded = true  -- Set flag to true so we don't add quest XP again
-            isMobXP = false
-        elseif isZoneChange and not XpFrame.isInCombat and not questXPAdded then
-            -- This is location XP
-            XpFrame.locationXP = XpFrame.locationXP + diffXP
-            isZoneChange = false
-            isMobXP = false
-        elseif isMobXP then
-            XpFrame.mobXP = XpFrame.mobXP + diffXP
+    if event == "CHAT_MSG_SYSTEM" or event == "CHAT_MSG_COMBAT_XP_GAIN" then
+        local message = ...
+        local xpGained = 0
+        -- Parse XP from Mob Kills
+        local creature, xp = string.match(message, "(.-) dies, you gain (%d+) experience.")
+        if creature and xp then
+            xpGained = tonumber(xp)
+            XpFrame.mobXP = XpFrame.mobXP + xpGained
+            XpFrame.totalXP = XpFrame.totalXP + xpGained
             XpFrame.mobCount = XpFrame.mobCount + 1
+            XpFrame.xpGained = xpGained
+
+            XpFrame.xpGains[xpGained] = (XpFrame.xpGains[xpGained] or 0) + 1
+            XpFrame.UpdateDisplayText()
+            return
         end
 
-        prevXP = currXP
-
-        if currXP < XpFrame.lastXP then
-            XpFrame.lastXP = 0
+        -- Parse XP from Quest Turn-ins
+        local questXP = string.match(message, "Experience gained: (%d+).")
+        if questXP then
+            xpGained = tonumber(questXP)
+            XpFrame.questXP = XpFrame.questXP + xpGained
+            XpFrame.totalXP = XpFrame.totalXP + xpGained
+            XpFrame.xpGained = xpGained
+            XpFrame.UpdateDisplayText()
+            return
         end
-            
-        XpFrame.xpGained = currXP - XpFrame.lastXP
-        XpFrame.xpGains[XpFrame.xpGained] = (XpFrame.xpGains[XpFrame.xpGained] or 0) + 1
-        XpFrame.lastXP = currXP
-        XpFrame.totalXP = XpFrame.totalXP + XpFrame.xpGained
 
-        -- Use the UpdateDisplayText function here
-        XpFrame.UpdateDisplayText()
-    
-    elseif event == "PLAYER_REGEN_DISABLED" then
-        XpFrame.isInCombat = true
-    
-    elseif event == "PLAYER_REGEN_ENABLED" then
-        XpFrame.isInCombat = false
-
-    elseif event == "QUEST_TURNED_IN" then
-        local _, xpGained = ...
-        XpFrame.questXP = XpFrame.questXP + xpGained
-        lastQuestTurnInTime = GetTime()  -- Set the time of the last quest turn-in
-        questXPAdded = false  -- Reset the quest XP added flag
-
-    elseif event == "ZONE_CHANGED_NEW_AREA" then
-        isZoneChange = true
-    
-    elseif event == "ZONE_CHANGED" then
-        isZoneChange = true
+        -- Parse XP from Location Discovery
+        local locationXP = string.match(message, "You discovered .- You gain (%d+) experience.")
+        locationXP = locationXP or string.match(message, "Discovered .-: (%d+) experience gained.")
+        if locationXP then
+            xpGained = tonumber(locationXP)
+            XpFrame.locationXP = XpFrame.locationXP + xpGained
+            XpFrame.totalXP = XpFrame.totalXP + xpGained
+            XpFrame.xpGained = xpGained
+            XpFrame.UpdateDisplayText()
+            return
+        end
 
     elseif event == "PLAYER_LEVEL_UP" then
-        prevXP = 0
         XpFrame.startXP = 0
-        XpFrame.lastXP = 0
         XpFrame.mobCount = 0
         XpFrame.totalXP = 0
+        XpFrame.mobXP = 0
+        XpFrame.questXP = 0
+        XpFrame.locationXP = 0
         XpFrame.xpGains = {}
     end
 end)
-
-
-
-
