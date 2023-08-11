@@ -31,35 +31,41 @@ XpFrame.CalculateModeXP = function()
 end
 
 XpFrame.UpdateDisplayText = function()
-    local xpDiff = UnitXP("player") - XpFrame.startXP
-    local currentTime = GetTime()
-    local timeDiff = (currentTime - XpFrame.startTime) / 60 -- in minutes
+    C_Timer.After(1, function()
+        local maxXP = UnitXPMax("player")
+        local currentXP = UnitXP("player")
+        local xpDiff = currentXP - XpFrame.startXP
+        local xpToLevel = maxXP - currentXP
+        local currentTime = GetTime()
+        local timeDiff = (currentTime - XpFrame.startTime) / 60 -- in minutes
 
-    local xpPerMin = timeDiff == 0 and 0 or xpDiff / timeDiff
-    local xpPerHour = xpPerMin * 60
-    local modeMobXP = XpFrame.CalculateModeXP()
-    local xpToLevel = UnitXPMax("player") - UnitXP("player")
-    local mobsToLevel = modeMobXP == 0 and 0 or xpToLevel / modeMobXP
-    local timeToLevel = xpPerMin == 0 and 0 or xpToLevel / xpPerMin -- in minutes
+        local xpPerMin = timeDiff == 0 and 0 or xpDiff / timeDiff
+        local xpPerHour = xpPerMin * 60
+        local modeMobXP = XpFrame.CalculateModeXP()
 
-    XpFrame.frame.totalXpText:SetText(string.format("Total XP: %d", XpFrame.totalXP))
-    XpFrame.frame.mobXpText:SetText(string.format("Total Mob XP: %d", XpFrame.mobXP))
-    XpFrame.frame.questXpText:SetText(string.format("Total Quest XP: %d", XpFrame.questXP))
-    XpFrame.frame.locationXpText:SetText(string.format("Total Location XP: %d", XpFrame.locationXP))
+        local mobsToLevel = modeMobXP == 0 and 0 or xpToLevel / modeMobXP
+        local timeToLevel = xpPerMin == 0 and 0 or xpToLevel / xpPerMin -- in minutes
 
-    XpFrame.frame.xpPerMinText:SetText(string.format("XP/Min: %d", xpPerMin))
-    XpFrame.frame.xpPerHourText:SetText(string.format("XP/Hour: %d", xpPerHour))
+        XpFrame.frame.totalXpText:SetText(string.format("Total XP: %d", XpFrame.totalXP))
+        XpFrame.frame.mobXpText:SetText(string.format("Total Mob XP: %d", XpFrame.mobXP))
+        XpFrame.frame.questXpText:SetText(string.format("Total Quest XP: %d", XpFrame.questXP))
+        XpFrame.frame.locationXpText:SetText(string.format("Total Location XP: %d", XpFrame.locationXP))
 
-    XpFrame.frame.LastXpGainedText:SetText(string.format("Last Mob XP: %d", XpFrame.xpGained))
-    XpFrame.frame.avgMobXPText:SetText(string.format("Mode Mob XP: %d", modeMobXP))
-    XpFrame.frame.mobsToLevelText:SetText(string.format("Mobs to Level: %d", mobsToLevel))
-    XpFrame.frame.XpToLevelText:SetText(string.format("XP To Level: %d", xpToLevel))
-    XpFrame.frame.XpToLevelText:SetTextColor(1, 1, 1)
+        XpFrame.frame.xpPerMinText:SetText(string.format("XP/Min: %d", xpPerMin))
+        XpFrame.frame.xpPerHourText:SetText(string.format("XP/Hour: %d", xpPerHour))
 
-    XpFrame.frame.startTimeText:SetText("Start Time: " .. date("%H:%M:%S"))
-    XpFrame.frame.TrackedTimeText:SetText(string.format("Tracked Time: %.2f min", timeDiff))
-    XpFrame.frame.TimeToLevelText:SetText(string.format("Time to Level: %.2f min", timeToLevel))
-    XpFrame.frame.TimeToLevelText:SetTextColor(1, 1, 1)
+        XpFrame.frame.LastXpGainedText:SetText(string.format("Last Mob XP: %d", XpFrame.xpGained))
+        XpFrame.frame.avgMobXPText:SetText(string.format("Mode Mob XP: %d", modeMobXP))
+        XpFrame.frame.mobsToLevelText:SetText(string.format("Mobs to Level: %.1f", mobsToLevel))
+        XpFrame.frame.XpToLevelText:SetText(string.format("XP To Level: %d", xpToLevel))
+        XpFrame.frame.XpToLevelText:SetTextColor(1, 1, 1)
+
+        XpFrame.frame.startTimeText:SetText("Start Time: " .. date("%H:%M:%S"))
+        XpFrame.frame.TrackedTimeText:SetText(string.format("Tracked Time: %.2f min", timeDiff))
+        XpFrame.frame.TimeToLevelText:SetText(string.format("Time to Level: %.2f min", timeToLevel))
+        XpFrame.frame.TimeToLevelText:SetTextColor(1, 1, 1)
+    end)
+
 end
 
 XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
@@ -87,7 +93,6 @@ XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
             xpGained = tonumber(questXP)
             XpFrame.questXP = XpFrame.questXP + xpGained
             XpFrame.totalXP = XpFrame.totalXP + xpGained
-            XpFrame.xpGained = xpGained
             XpFrame.UpdateDisplayText()
             return
         end
@@ -99,7 +104,6 @@ XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
             xpGained = tonumber(locationXP)
             XpFrame.locationXP = XpFrame.locationXP + xpGained
             XpFrame.totalXP = XpFrame.totalXP + xpGained
-            XpFrame.xpGained = xpGained
             XpFrame.UpdateDisplayText()
             return
         end
@@ -112,5 +116,6 @@ XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
         XpFrame.questXP = 0
         XpFrame.locationXP = 0
         XpFrame.xpGains = {}
+        XpFrame.UpdateDisplayText()
     end
 end)
