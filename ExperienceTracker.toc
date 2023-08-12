@@ -2,6 +2,7 @@
 ## Title: ExperienceTracker
 ## Notes: Tracks XP gained per hour and per minute.
 ## SavedVariables: ExperienceTrackerData
+## Version: 1.0.5
 
 XpFrameContainer.lua
 ExperienceTracker.lua
