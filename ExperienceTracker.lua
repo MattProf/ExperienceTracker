@@ -1,4 +1,5 @@
 -- ExperienceTracker.lua
+XpFrame.startDateTime = time()
 XpFrame.startTime = GetTime()
 XpFrame.startXP = UnitXP("player")
 
@@ -60,7 +61,7 @@ XpFrame.UpdateDisplayText = function()
         XpFrame.frame.XpToLevelText:SetText(string.format("XP To Level: %d", xpToLevel))
         XpFrame.frame.XpToLevelText:SetTextColor(1, 1, 1)
 
-        XpFrame.frame.startTimeText:SetText("Start Time: " .. date("%H:%M:%S"))
+        XpFrame.frame.startTimeText:SetText("Start Time: " .. date("%H:%M:%S", XpFrame.startDateTime))
         XpFrame.frame.TrackedTimeText:SetText(string.format("Tracked Time: %.2f min", timeDiff))
         XpFrame.frame.TimeToLevelText:SetText(string.format("Time to Level: %.2f min", timeToLevel))
         XpFrame.frame.TimeToLevelText:SetTextColor(1, 1, 1)
@@ -98,8 +99,8 @@ XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
         end
 
         -- Parse XP from Location Discovery
-        local locationXP = string.match(message, "You discovered .- You gain (%d+) experience.")
-        locationXP = locationXP or string.match(message, "Discovered .-: (%d+) experience gained.")
+        local locationXP = string.match(message, "You discovered .- You gain (%d+) experience")
+        locationXP = locationXP or string.match(message, "Discovered .-: (%d+) experience gained")
         if locationXP then
             xpGained = tonumber(locationXP)
             XpFrame.locationXP = XpFrame.locationXP + xpGained
@@ -109,6 +110,8 @@ XpFrame.frame:SetScript("OnEvent", function(self, event, ...)
         end
 
     elseif event == "PLAYER_LEVEL_UP" then
+        XpFrame.startDateTime = time()
+        XpFrame.startTime = GetTime()
         XpFrame.startXP = 0
         XpFrame.mobCount = 0
         XpFrame.totalXP = 0
